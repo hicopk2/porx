@@ -36,6 +36,7 @@
             left: 50%;
             transform: translateX(-50%);
             display: flex;
+            align-items: center;
             gap: 10px;
             padding: 10px 20px;
             background: rgba(255, 210, 150, 0.05);
@@ -45,8 +46,15 @@
             border-radius: 50px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             z-index: 100;
-            width: min(600px, 90vw);
-            transition: border 0.3s ease;
+            width: min(750px, 95vw); /* Widened to fit new buttons */
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Fullscreen Hide Class */
+        .nav-hidden {
+            top: -100px;
+            opacity: 0;
+            pointer-events: none;
         }
 
         .nav-container:focus-within {
@@ -61,6 +69,7 @@
             color: #f5d7a1;
             font-size: 16px;
             padding: 5px 10px;
+            min-width: 0; /* Prevents flex items from overflowing */
         }
 
         #bar::placeholder {
@@ -72,15 +81,18 @@
             border: 1px solid rgba(255, 210, 150, 0.2);
             color: #f5d7a1;
             border-radius: 25px;
-            padding: 5px 20px;
+            padding: 6px 18px;
             cursor: none;
             transition: all 0.2s ease;
             font-weight: 600;
+            white-space: nowrap;
+            font-size: 14px;
         }
 
         .nav-btn:hover {
             background: rgba(255, 210, 150, 0.2);
             transform: scale(1.05);
+            border-color: rgba(255, 210, 150, 0.4);
         }
 
         /* Iframe Styles */
@@ -123,9 +135,11 @@
     <canvas class="background-canvas" id="particleCanvas"></canvas>
     <div class="cursor" id="customCursor"></div>
 
-    <div class="nav-container">
+    <div class="nav-container" id="navBar">
         <input type="text" placeholder="Explore the galaxy..." id="bar" autocomplete="off">
         <button class="nav-btn" onclick="nav()">Go</button>
+        <button class="nav-btn" onclick="openGames()">Games</button>
+        <button class="nav-btn" onclick="toggleFullScreen()">Full Screen</button>
     </div>
 
     <iframe id="frame"></iframe>
@@ -137,6 +151,7 @@
 
         const frame = document.getElementById("frame")
         const bar = document.getElementById("bar")
+        const navBar = document.getElementById("navBar")
 
         const { ScramjetController } = $scramjetLoadController()
         const scramjet = new ScramjetController({
@@ -149,100 +164,52 @@
         })
         scramjet.init()
 
-        function nav() {
-            let url = bar.value.trim()
+        function nav(customUrl) {
+            let url = customUrl || bar.value.trim()
             if (!url) return;
+
             if (!url.includes(".")) {
-                url = "https://duckduckgo.com/?q=" + encodeURIComponent(url)
+                url = "https://search.brave.com/search?q=" + encodeURIComponent(url)
             } else if (!url.startsWith("http://") && !url.startsWith("https://")) {
                 url = "https://" + url
             }
-            frame.src = scramjet.encodeUrl(url)
-            bar.blur(); // Focus back to iframe
+
+            try {
+                frame.src = scramjet.encodeUrl(url)
+            } catch (err) {
+                console.warn("Encoding failed, attempting direct load:", err)
+                frame.src = url
+            }
+            bar.blur();
         }
+
+        /* --- Custom Button Logic --- */
+        function openGames() {
+            // You can change this to any game site you prefer
+            nav("https://poki.com");
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+                navBar.classList.add('nav-hidden');
+            } else {
+                document.exitFullscreen();
+                navBar.classList.remove('nav-hidden');
+            }
+        }
+
+        // Ensure buttons return if user exits fullscreen with 'Esc' key
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                navBar.classList.remove('nav-hidden');
+            }
+        });
 
         bar.addEventListener("keydown", (e) => { if (e.key === "Enter") nav() })
 
-        /* --- Particle System --- */
-        const canvas = document.getElementById('particleCanvas');
-        const ctx = canvas.getContext('2d');
-        const cursor = document.getElementById('customCursor');
-        let mouseX = -100, mouseY = -100;
-
-        const PARTICLE_COUNT = 150;
-        let particles = [];
-
-        class Particle {
-            constructor() {
-                this.init();
-            }
-            init() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = (Math.random() - 0.5) * 0.5;
-                this.radius = Math.random() * 2 + 1;
-            }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
-
-                // Mouse Repel
-                const dx = this.x - mouseX;
-                const dy = this.y - mouseY;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < 150) {
-                    this.x += dx * 0.01;
-                    this.y += dy * 0.01;
-                }
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
-                ctx.fillStyle = "rgba(245, 215, 161, 0.5)";
-                ctx.fill();
-            }
-        }
-
-        function initParticles() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            particles = Array.from({length: PARTICLE_COUNT}, () => new Particle());
-        }
-
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach(p => { p.update(); p.draw(); });
-            
-            // Draw connections
-            ctx.beginPath();
-            ctx.strokeStyle = "rgba(245, 215, 161, 0.05)";
-            for(let i=0; i<PARTICLE_COUNT; i++) {
-                for(let j=i+1; j<PARTICLE_COUNT; j++) {
-                    const d = Math.hypot(particles[i].x - particles[j].x, particles[i].y - particles[j].y);
-                    if(d < 120) {
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                    }
-                }
-            }
-            ctx.stroke();
-            requestAnimationFrame(animate);
-        }
-
-        window.addEventListener('resize', initParticles);
-        document.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX; mouseY = e.clientY;
-            cursor.style.left = mouseX + 'px';
-            cursor.style.top = mouseY + 'px';
-        });
-
-        initParticles();
-        animate();
     </script>
-</body>
-</html>
 </body>
 </html>
