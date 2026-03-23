@@ -156,70 +156,6 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .tabs-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin: 0 0 16px 0;
-            width: min(980px, 96vw);
-            flex-wrap: wrap;
-            justify-content: flex-start;
-            align-self: flex-start;
-            padding-left: 75px;
-        }
-
-        .tab-btn {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            color: #ddd;
-            border: 1px solid var(--border);
-            border-radius: 999px;
-            padding: 8px 14px;
-            cursor: pointer;
-            transition: 0.2s;
-            font-size: 0.9rem;
-        }
-
-        .tab-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--accent);
-        }
-
-        .tab-btn.active {
-            background: rgba(0, 255, 204, 0.12);
-            border-color: var(--accent);
-            color: var(--accent);
-            box-shadow: 0 0 16px var(--accent-glow);
-        }
-
-        .tab-close {
-            border: none;
-            background: transparent;
-            color: inherit;
-            cursor: pointer;
-            font-size: 0.9rem;
-            padding: 0;
-            line-height: 1;
-        }
-
-        .new-tab-btn {
-            background: rgba(255, 255, 255, 0.06);
-            color: white;
-            border: 1px solid var(--border);
-            border-radius: 50%;
-            width: 34px;
-            height: 34px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .new-tab-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: var(--accent);
-        }
-
         .search-wrapper {
             position: relative;
             display: flex;
@@ -312,6 +248,8 @@
         <button class="side-link" onclick="nav('https://discord.com')">💬 Discord</button>
         <button class="side-link" onclick="nav('https://poki.com')">🎮 Games</button>
         <button class="side-link" onclick="nav('https://open.spotify.com/')">Music</button>
+        <button class="side-link" onclick="setHome('about:blank')">⚪ Blank start</button>
+        <button class="side-link" onclick="setHome('https://google.com')">🌐 Google start</button>
         <div style="margin-top: auto;">
             <button class="side-link" onclick="toggleFullScreen()">🖥️ Fullscreen</button>
         </div>
@@ -321,7 +259,6 @@
 
     <div class="hero">
         <div class="hero-inner">
-            <div class="tabs-bar" id="tabsBar"></div>
             <h1>pluto</h1>
             <div class="search-wrapper">
                 <div class="loading-spinner" id="spinner"></div>
@@ -337,11 +274,13 @@
         let scramjet = null;
         let isReady = false;
 
-        let tabs = [
-            { title: 'New Tab', url: 'about:blank', pinned: false }
-        ];
-        let activeTab = 0;
-        let closedTabs = [];
+        // this is your “about:blank in settings” setting
+        let homePage = 'about:blank';
+
+        function setHome(url) {
+            homePage = url;
+            goHome();
+        }
 
         window.addEventListener('load', async () => {
             if ('serviceWorker' in navigator) {
@@ -359,8 +298,8 @@
                 }
             }, 100);
 
-            renderTabs();
-            loadActiveTab();
+            // load the home page on startup
+            goHome();
         });
 
         async function setupProxy() {
@@ -405,10 +344,6 @@
             document.body.classList.add('browsing');
             closeSidebar();
 
-            tabs[activeTab].url = url;
-            tabs[activeTab].title = shortTitle(url);
-            renderTabs();
-
             try {
                 const encoded = await scramjet.encodeUrl(url);
                 document.getElementById('frame').src = encoded;
@@ -416,123 +351,6 @@
                 document.getElementById('frame').src = url;
             } finally {
                 spinner.style.display = 'none';
-            }
-        }
-
-        function newTab() {
-            const tab = closedTabs.pop() || { title: 'New Tab', url: 'about:blank', pinned: false };
-            tabs.push(tab);
-            activeTab = tabs.length - 1;
-            renderTabs();
-            loadActiveTab();
-            document.getElementById('bar').value = '';
-            document.body.classList.remove('browsing');
-        }
-
-        function reopenTab() {
-            const tab = closedTabs.pop();
-            if (!tab) return;
-            tabs.push(tab);
-            activeTab = tabs.length - 1;
-            renderTabs();
-            loadActiveTab();
-        }
-
-        function switchTab(index) {
-            activeTab = index;
-            renderTabs();
-            loadActiveTab();
-        }
-
-        function closeTab(index) {
-            if (tabs.length === 1) {
-                tabs[0] = { title: 'New Tab', url: 'about:blank', pinned: false };
-                activeTab = 0;
-                renderTabs();
-                loadActiveTab();
-                return;
-            }
-
-            closedTabs.push(tabs[index]);
-            tabs.splice(index, 1);
-
-            if (activeTab === index) {
-                activeTab = Math.max(0, index - 1);
-            } else if (index < activeTab) {
-                activeTab--;
-            }
-
-            renderTabs();
-            loadActiveTab();
-        }
-
-        function loadActiveTab() {
-            const tab = tabs[activeTab];
-            const bar = document.getElementById('bar');
-            bar.value = tab.url === 'about:blank' ? '' : tab.url;
-
-            if (tab.url === 'about:blank') {
-                document.body.classList.remove('browsing');
-                document.getElementById('frame').src = 'about:blank';
-                return;
-            }
-
-            document.body.classList.add('browsing');
-
-            if (scramjet) {
-                scramjet.encodeUrl(tab.url)
-                    .then(encoded => document.getElementById('frame').src = encoded)
-                    .catch(() => document.getElementById('frame').src = tab.url);
-            } else {
-                document.getElementById('frame').src = tab.url;
-            }
-        }
-
-        function renderTabs() {
-            const tabsBar = document.getElementById('tabsBar');
-            tabsBar.innerHTML = '';
-
-            tabs.forEach((tab, index) => {
-                const tabWrap = document.createElement('div');
-                tabWrap.className = 'tab-btn' + (index === activeTab ? ' active' : '');
-                tabWrap.onclick = () => switchTab(index);
-
-                const label = document.createElement('span');
-                label.textContent = tab.title || 'New Tab';
-
-                const close = document.createElement('button');
-                close.className = 'tab-close';
-                close.textContent = '×';
-                close.onclick = (e) => {
-                    e.stopPropagation();
-                    closeTab(index);
-                };
-
-                tabWrap.appendChild(label);
-                tabWrap.appendChild(close);
-                tabsBar.appendChild(tabWrap);
-            });
-
-            const reopenBtn = document.createElement('button');
-            reopenBtn.className = 'new-tab-btn';
-            reopenBtn.textContent = '↺';
-            reopenBtn.title = 'Reopen closed tab';
-            reopenBtn.onclick = reopenTab;
-            tabsBar.appendChild(reopenBtn);
-
-            const newBtn = document.createElement('button');
-            newBtn.className = 'new-tab-btn';
-            newBtn.textContent = '+';
-            newBtn.onclick = newTab;
-            tabsBar.appendChild(newBtn);
-        }
-
-        function shortTitle(url) {
-            try {
-                const u = new URL(url);
-                return u.hostname.replace('www.', '');
-            } catch {
-                return 'Tab';
             }
         }
 
@@ -545,9 +363,8 @@
         }
 
         function goHome() {
-            tabs[activeTab] = { title: 'New Tab', url: 'about:blank', pinned: false };
-            renderTabs();
-            loadActiveTab();
+            document.body.classList.remove('browsing');
+            document.getElementById('frame').src = homePage;
             document.getElementById('bar').value = '';
             closeSidebar();
         }
