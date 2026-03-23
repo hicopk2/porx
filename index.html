@@ -250,6 +250,10 @@
         <button class="side-link" onclick="nav('https://open.spotify.com/')">Music</button>
         <button class="side-link" onclick="setHome('about:blank')">⚪ Blank start</button>
         <button class="side-link" onclick="setHome('https://google.com')">🌐 Google start</button>
+        <!-- "new tab" style button that opens about:blank -->
+        <button class="side-link" onclick="nav('about:blank')">
+            🖼️ New blank page
+        </button>
         <div style="margin-top: auto;">
             <button class="side-link" onclick="toggleFullScreen()">🖥️ Fullscreen</button>
         </div>
@@ -335,14 +339,15 @@
 
             spinner.style.display = 'block';
 
-            if (!url.includes('.')) {
+            if (url === 'about:blank') {
+                // pass through as-is
+            } else if (!url.includes('.')) {
                 url = 'https://www.duckduckgo.com/search?q=' + encodeURIComponent(url);
             } else if (!url.startsWith('http')) {
                 url = 'https://' + url;
             }
 
             document.body.classList.add('browsing');
-            closeSidebar();
 
             try {
                 const encoded = await scramjet.encodeUrl(url);
