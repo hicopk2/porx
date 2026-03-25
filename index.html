@@ -1,389 +1,385 @@
-<!--
-    Pluto Explorer (kinda rough version)
-    I didn’t really aim for perfection here — just wanted something that works and looks decent.
--->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pluto Explorer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pluto | Explorer</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
-<script src="/sail/baremux/index.js" defer></script>
-<script src="/sail/scram/scramjet.all.js" defer></script>
+    <script src="/sail/baremux/index.js" defer></script>
+    <script src="/sail/scram/scramjet.all.js" defer></script>
 
-<style>
-/* Colors — might tweak later honestly */
-:root {
-    --accent: #00ffcc;
-    --bg: #050505;
-    --glass: rgba(18,18,18,0.85);
-    --border: rgba(255,255,255,0.08);
-}
+    <style>
+        :root {
+            --accent: #00ffcc;
+            --accent-glow: rgba(0, 255, 204, 0.3);
+            --bg: #050505;
+            --glass: rgba(18, 18, 18, 0.8);
+            --border: rgba(255, 255, 255, 0.08);
+            --sidebar-width: 280px;
+            --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-* { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
-body {
-    margin: 0;
-    height: 100vh;
-    font-family: 'Inter', sans-serif;
-    background: var(--bg);
-    color: #fff;
-    overflow: hidden; /* prevents scroll weirdness */
-}
+        body, html {
+            margin: 0;
+            height: 100%;
+            background: var(--bg);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
 
-/* Sidebar (this part took longer than expected...) */
-.sidebar {
-    position: fixed;
-    left: -260px; /* hidden by default */
-    top: 0;
-    width: 260px;
-    height: 100%;
-    background: var(--glass);
-    backdrop-filter: blur(16px);
-    border-right: 1px solid var(--border);
-    padding: 20px;
-    transition: all 0.3s ease; /* might be overkill */
-    z-index: 100;
-}
+        .sidebar {
+            position: fixed;
+            left: calc(var(--sidebar-width) * -1);
+            top: 0;
+            bottom: 0;
+            width: var(--sidebar-width);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border);
+            transition: var(--transition);
+            padding: 40px 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 
-.sidebar.open {
-    left: 0;
-}
+        .sidebar.open {
+            left: 0;
+            box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+        }
 
-.sidebar h2 {
-    font-size: 0.75rem;
-    color: #777;
-    letter-spacing: 2px;
-    margin-bottom: 20px;
-}
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition);
+            z-index: 90;
+        }
 
-.sidebar button {
-    width: 100%;
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 10px;
-    border: none;
-    background: transparent;
-    color: #aaa;
-    cursor: pointer;
-}
+        .sidebar.open ~ .overlay {
+            opacity: 1;
+            pointer-events: all;
+        }
 
-.sidebar button:hover {
-    background: rgba(255,255,255,0.05);
-    color: var(--accent);
-}
+        .sidebar h2 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #666;
+            margin-bottom: 20px;
+            padding-left: 10px;
+        }
 
-/* menu button */
-.menu-btn {
-    position: fixed;
-    top: 15px;
-    left: 15px;
-    z-index: 120;
-}
+        .side-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            color: #aaa;
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.95rem;
+            transition: 0.2s;
+        }
 
-/* main landing thing */
-.hero {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    transition: 0.3s;
-}
+        .side-link:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--accent);
+            border-color: var(--border);
+        }
 
-.hero h1 {
-    font-size: 3rem;
-    letter-spacing: 10px;
-    font-weight: 300;
-}
+        .menu-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 130;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
 
-/* search bar */
-.search {
-    display: flex;
-    background: var(--glass);
-    border: 1px solid var(--border);
-    border-radius: 50px;
-    padding: 5px 10px;
-    width: min(500px, 90%);
-}
+        .menu-toggle:hover {
+            background: rgba(255,255,255,0.1);
+        }
 
-.search input {
-    flex: 1;
-    background: none;
-    border: none;
-    color: white;
-    outline: none;
-    padding: 10px;
-}
+        .hero {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            flex-direction: column;
+            transition: var(--transition);
+            z-index: 10;
+            padding: 16px;
+            box-sizing: border-box;
+        }
 
-.search button {
-    background: var(--accent);
-    border: none;
-    border-radius: 30px;
-    padding: 10px 20px;
-    cursor: pointer;
-}
+        .hero-inner {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 0;
+            margin-top: 0;
+        }
 
-/* iframe view */
-iframe {
-    position: absolute;
-    inset: 0;
-    border: none;
-    opacity: 0;
-    transition: opacity 0.4s;
-}
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 300;
+            letter-spacing: 12px;
+            text-transform: uppercase;
+            margin-bottom: 22px;
+            background: linear-gradient(to bottom, #fff, #666);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
-body.active iframe {
-    opacity: 1;
-}
+        .search-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            padding: 6px 6px 6px 20px;
+            border-radius: 50px;
+            width: min(500px, 85vw);
+            transition: 0.3s;
+        }
 
-body.active .hero {
-    opacity: 0;
-    pointer-events: none;
-}
-</style>
+        .search-wrapper:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            color: white;
+            font-size: 1rem;
+            padding: 10px 0;
+        }
+
+        .go-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .go-btn:hover {
+            transform: scale(1.05);
+        }
+
+        iframe {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        body.browsing iframe {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        body.browsing .hero {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.9);
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 
 <body>
 
-<button class="menu-btn" onclick="uiStuff.toggleSidebar()">☰</button>
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
-<div class="sidebar" id="sidebar">
-    <h2>Navigation</h2>
-
-    <!-- quick links (could make dynamic later?) -->
-    <button onclick="browserStuff.goHome()">🏠 Home</button>
-    <button onclick="browserStuff.open('https://youtube.com')">YouTube</button>
-    <button onclick="browserStuff.open('https://discord.com')">Discord</button>
-    <button onclick="browserStuff.open('https://poki.com')">Games</button>
-
-    <h2>Start Page</h2>
-    <button onclick="settingsStuff.setHome('about:blank')">Blank</button>
-    <button onclick="settingsStuff.setHome('https://google.com')">Google</button>
-
-    <div style="margin-top:auto;">
-        <button onclick="uiStuff.fullscreen()">Fullscreen</button>
+    <div class="sidebar" id="sidebar">
+        <h2>Navigation</h2>
+        <button class="side-link" onclick="goHome()">🏠 Home</button>
+        <button class="side-link" onclick="nav('https://youtube.com')">📺 YouTube</button>
+        <button class="side-link" onclick="nav('https://discord.com')">💬 Discord</button>
+        <button class="side-link" onclick="nav('https://poki.com')">🎮 Games</button>
+        <button class="side-link" onclick="nav('https://open.spotify.com/')">Music</button>
+        
+        <div style="margin-top: auto;">
+            <button class="side-link" onclick="toggleFullScreen()">🖥️ Fullscreen</button>
+        </div>
     </div>
-</div>
 
-<div class="hero">
-    <h1>PLUTO</h1>
+    <div class="overlay" onclick="toggleSidebar()"></div>
 
-    <div class="search">
-        <input id="urlInput" placeholder="Search or enter URL">
-        <button onclick="browserStuff.open()">Go</button>
+    <div class="hero">
+        <div class="hero-inner">
+            <h1>pluto</h1>
+            <div class="search-wrapper">
+                <div class="loading-spinner" id="spinner"></div>
+                <input id="bar" placeholder="Enter URL or search queries..." autocomplete="off" />
+                <button class="go-btn" onclick="nav()">Go</button>
+            </div>
+        </div>
     </div>
-</div>
 
-<iframe id="view"></iframe>
+    <iframe id="frame"></iframe>
 
-<script>
-/*
-    Pluto Explorer logic
-    Honestly this evolved kinda randomly — might refactor later.
-*/
+    <script>
+        let scramjet = null;
+        let isReady = false;
 
-let appState = {
-    proxyInstance: null,
-    isReady: false,
-    homePage: localStorage.getItem("pluto_home") || "about:blank"
-};
+        // this is your “about:blank in settings” setting
+        let homePage = 'about:blank';
 
-// --- boot sequence ---
-window.addEventListener("load", async () => {
+        function setHome(url) {
+            homePage = url;
+            goHome();
+        }
 
-    // doing these in order just to be safe
-    await setupSW();
-    await waitForStuff();
-    await setupProxy();
-
-    // default load
-    browserStuff.goHome();
-});
-
-// --- setup stuff ---
-async function setupSW() {
-    if (!navigator.serviceWorker) {
-        // meh, not supported
-        return;
-    }
-
-    try {
-        await navigator.serviceWorker.register("/sail/sw.js", {
-            scope: "/sail/go/"
-        });
-    } catch (err) {
-        console.log("service worker failed... but whatever", err);
-    }
-}
-
-// waits for external libs (kind of hacky but works)
-function waitForStuff() {
-    return new Promise(resolve => {
-
-        let check = setInterval(() => {
-
-            if (window.BareMux && window.$scramjetLoadController) {
-                clearInterval(check);
-                resolve();
+        window.addEventListener('load', async () => {
+            if ('serviceWorker' in navigator) {
+                try {
+                    await navigator.serviceWorker.register('/sail/sw.js', { scope: '/sail/go/' });
+                } catch(e) {
+                    console.warn('SW Registration failed');
+                }
             }
 
-        }, 100);
+            const initInterval = setInterval(async () => {
+                if (window.BareMux && window.$scramjetLoadController) {
+                    clearInterval(initInterval);
+                    await setupProxy();
+                }
+            }, 100);
 
-    });
-}
-
-async function setupProxy() {
-    try {
-        const connection = new BareMux.BareMuxConnection("/sail/baremux/worker.js");
-
-        await connection.setTransport("/sail/libcurl/index.mjs", [
-            { websocket: "wss://wisp.rhw.one/" }
-        ]);
-
-        const { ScramjetController } = $scramjetLoadController();
-
-        appState.proxyInstance = new ScramjetController({
-            prefix: "/sail/go/",
-            files: {
-                all: "/sail/scram/scramjet.all.js",
-                wasm: "/sail/scram/scramjet.wasm.wasm",
-                sync: "/sail/scram/scramjet.sync.js"
-            }
+            // load the home page on startup
+            goHome();
         });
 
-        await appState.proxyInstance.init();
+        async function setupProxy() {
+            try {
+                const connection = new BareMux.BareMuxConnection('/sail/baremux/worker.js');
+                await connection.setTransport('/sail/libcurl/index.mjs', [{ websocket: 'wss://wisp.rhw.one/' }]);
 
-        appState.isReady = true;
+                const { ScramjetController } = $scramjetLoadController();
+                scramjet = new ScramjetController({
+                    prefix: '/sail/go/',
+                    files: {
+                        all: '/sail/scram/scramjet.all.js',
+                        wasm: '/sail/scram/scramjet.wasm.wasm',
+                        sync: '/sail/scram/scramjet.sync.js'
+                    }
+                });
 
-        console.log("Proxy is ready 👍");
-
-    } catch (e) {
-        console.error("Proxy setup failed:", e);
-    }
-}
-
-// --- browser controls ---
-const browserStuff = {
-
-    async open(inputVal) {
-
-        // grab from input if nothing passed
-        let raw = inputVal || document.getElementById("urlInput").value;
-
-        if (!raw) return;
-
-        raw = raw.trim();
-
-        if (!appState.isReady) {
-            alert("still loading, give it a sec...");
-            return;
+                await scramjet.init();
+                isReady = true;
+                console.log('Sail Proxy Service: Online');
+            } catch (err) {
+                console.error('Setup failed:', err);
+            }
         }
 
-        let finalUrl = this.parseInput(raw);
+        async function nav(input) {
+            const bar = document.getElementById('bar');
+            const spinner = document.getElementById('spinner');
+            let url = (input || bar.value).trim();
 
-        document.body.classList.add("active");
+            if (!url) return;
+            if (!isReady) return alert('Engine is starting. Please wait a moment.');
 
-        try {
-            let encodedUrl = await appState.proxyInstance.encodeUrl(finalUrl);
+            spinner.style.display = 'block';
 
-            // small redundancy (I forgot why I added this lol)
-            if (encodedUrl) {
-                view.src = encodedUrl;
-            } else {
-                view.src = finalUrl;
+            if (url === 'about:blank') {
+                // pass through as-is
+            } else if (!url.includes('.')) {
+                url = 'https://www.duckduckgo.com/search?q=' + encodeURIComponent(url);
+            } else if (!url.startsWith('http')) {
+                url = 'https://' + url;
             }
 
-        } catch (err) {
-            console.warn("encoding failed, fallback", err);
-            view.src = finalUrl;
-        }
-    },
+            document.body.classList.add('browsing');
 
-    parseInput(val) {
-
-        if (val === "about:blank") return val;
-
-        // quick search fallback
-        if (!val.includes(".")) {
-            return "https://duckduckgo.com/?q=" + encodeURIComponent(val);
+            try {
+                const encoded = await scramjet.encodeUrl(url);
+                document.getElementById('frame').src = encoded;
+            } catch {
+                document.getElementById('frame').src = url;
+            } finally {
+                spinner.style.display = 'none';
+            }
         }
 
-        // lazy protocol fix
-        if (!val.startsWith("http")) {
-            val = "https://" + val;
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
         }
 
-        return val;
-    },
-
-    goHome() {
-        document.body.classList.remove("active");
-
-        view.src = appState.homePage;
-
-        // reset input (not super necessary but feels cleaner)
-        document.getElementById("urlInput").value = "";
-
-        uiStuff.closeSidebar();
-    }
-};
-
-// --- settings ---
-const settingsStuff = {
-
-    setHome(url) {
-        appState.homePage = url;
-
-        // saving locally
-        localStorage.setItem("pluto_home", url);
-
-        browserStuff.goHome();
-    }
-
-};
-
-// --- UI stuff ---
-const uiStuff = {
-
-    toggleSidebar() {
-        document.getElementById("sidebar").classList.toggle("open");
-    },
-
-    closeSidebar() {
-        document.getElementById("sidebar").classList.remove("open");
-    },
-
-    fullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-        } else {
-            document.exitFullscreen();
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
         }
-    }
 
-};
+        function goHome() {
+            document.body.classList.remove('browsing');
+            document.getElementById('frame').src = homePage;
+            document.getElementById('bar').value = '';
+            closeSidebar();
+        }
 
-// --- input handling ---
-document.getElementById("urlInput").addEventListener("keydown", function(e) {
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if (document.exitFullscreen) document.exitFullscreen();
+        }
 
-    if (e.key === "Enter") {
-        browserStuff.open();
-    }
-
-    // thought about adding history here... maybe later
-});
-
-// random idea I didn’t finish
-// function saveHistory(url) {
-//     console.log("todo");
-// }
-</script>
-
+        document.getElementById('bar').addEventListener('keydown', e => {
+            if (e.key === 'Enter') nav();
+        });
+    </script>
 </body>
 </html>
+
+
+
